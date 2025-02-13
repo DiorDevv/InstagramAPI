@@ -2,10 +2,11 @@ from datetime import datetime
 from enum import verify
 from tokenize import TokenError
 
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.response import Response
 from django.shortcuts import render
 from rest_framework import generics, permissions
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, NotFound
 from rest_framework.generics import CreateAPIView, UpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import permission_classes
@@ -15,7 +16,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from shared.utility import send_email, check_email_or_phone
 from .serializers import SignUpSerializer, ChangeInformation, PhotoSerializer, LoginSerializer, LoginRefreshSerializer, \
-    UserLogOutSerializer, ForgotPasswordSerializer
+    UserLogOutSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
 from .models import User, DONE, CODE_VERIFIED, VIA_EMAIL, VIA_PHONE
 
 
@@ -171,7 +172,7 @@ class LogOutAPIView(APIView):
 
 
 class ForgotPasswordAPIView(APIView):
-    permission_classes = [IsAuthenticated, ]
+    permission_classes = [AllowAny, ]
     serializer_class = ForgotPasswordSerializer
 
     def post(self, request, *args, **kwargs):
@@ -189,8 +190,32 @@ class ForgotPasswordAPIView(APIView):
             {
                 "success": True,
                 'msg': "Tasdiqlsh kodi yuborildi",
-                'access_token': user.token()['access_token'],
+                'access': user.token()['access'],
                 'refresh_token': user.token()['refresh_token'],
                 'user_status': user.auth_status
             }, status=200
+        )
+
+
+class ResetPasswordAPIView(UpdateAPIView):
+    serializer_class = ResetPasswordSerializer
+    permission_classes = [IsAuthenticated, ]
+    http_method_names = ['patch', 'put']
+
+    def get_object(self):
+        return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        response = super(ResetPasswordAPIView, self).update(request, *args, **kwargs)
+        try:
+            user = User.objects.get(id=response.data.get('id'))
+        except ObjectDoesNotExist as e:
+            raise NotFound(detail='User not found')
+        return Response(
+            {
+                'success': True,
+                'message': "Parolingiz muvaffaqiyatli o'zgartirildi",
+                'access': user.token()['access'],
+                'refresh': user.token()['refresh_token'],
+            }
         )
