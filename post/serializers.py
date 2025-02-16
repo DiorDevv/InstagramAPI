@@ -55,6 +55,7 @@ class PostSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     author = UserSerializer(read_only=True)
+    post = serializers.PrimaryKeyRelatedField(read_only=True)
     replies = serializers.SerializerMethodField('get_replies')
     me_liked = serializers.SerializerMethodField('get_me_liked')
     likes_count = serializers.SerializerMethodField('get_likes_count')
